@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import List, Optional
 
-from PySide6.QtCore import QMargins
+from PySide6.QtCore import QMargins, QPoint
 from PySide6.QtGui import QFont, QFontMetrics, QPixmap
 from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
 
@@ -66,35 +66,6 @@ class GUIInfo:
         else:
             self._app_icon = QPixmap()
 
-    def set_window_size(self, settings: Settings) -> tuple[int, int, int, int]:
-        """
-        Calculate the recommended window size and position.
-
-        Returns:
-            tuple[int, int, int, int]: The x position, y position, width, and height for the window.
-        """
-        # Get the screen size and calculate window dimensions based on it
-        screen = QApplication.primaryScreen()
-        screen_geometry = screen.geometry()
-        window_width = int(screen_geometry.width() * 0.5)
-        window_height = int(screen_geometry.height() * 0.5)
-
-        # Calculate position to center the window on screen
-        x_position = int((screen_geometry.width() - window_width) / 2.5)
-        y_position = int((screen_geometry.height() - window_height) / 5)
-
-        # Update settings with calculated values
-        settings.window_x = x_position
-        settings.window_y = y_position
-        settings.window_width = window_width
-        settings.window_height = window_height
-
-        # Save the settings to disk
-        settings.save()
-
-        # Return values for setGeometry (x, y, width, height)
-        return x_position, y_position, window_width, window_height
-
     def get_window_geometry(self) -> tuple[int, int, int, int]:
         """
         Get window geometry (x, y, width, height) using saved settings if valid,
@@ -103,20 +74,34 @@ class GUIInfo:
         """
         settings = Settings()
         settings.load()  # Ensure settings are reloaded from disk
+
         if (
-            settings.window_width > 900
-            or settings.window_height > 600
-            or settings.window_x > 0
-            or settings.window_y > 30
+            (settings.window_width == 0 and settings.window_height == 0)
+            or not self.check_window_position(settings.window_x, settings.window_y, settings.window_width)
         ):
-            return (
-                settings.window_x,
-                settings.window_y,
-                settings.window_width,
-                settings.window_height,
-            )
-        else:
-            return self.set_window_size(settings)
+            screen_rect = QApplication.primaryScreen().geometry()
+            settings.window_width = int(screen_rect.width() * 0.5)
+            settings.window_height = int(screen_rect.height() * 0.5)
+            settings.window_x = screen_rect.x() + int(screen_rect.width() / 2 - settings.window_width / 2)
+            settings.window_y = screen_rect.y() + int(screen_rect.height() / 2 - settings.window_height / 2)
+            settings.save()
+
+        return settings.window_x, settings.window_y, settings.window_width, settings.window_height
+
+    def check_window_position(self, x: int, y: int, width: int) -> bool:
+        top_left = QPoint(x, y)
+        top_right = QPoint(x + width, y)
+        top_left_valid = False
+        top_right_valid = False
+
+        for screen in QApplication.screens():
+            geometry = screen.geometry()
+            if not top_left_valid and geometry.contains(top_left):
+                top_left_valid = True
+            if not top_right_valid and geometry.contains(top_right):
+                top_right_valid = True
+
+        return top_left_valid and top_right_valid
 
     @property
     def default_font(self) -> QFont:

@@ -6,8 +6,8 @@ from traceback import format_exc
 from typing import Any
 
 from loguru import logger
-from PySide6.QtCore import QTimer
-from PySide6.QtGui import QShowEvent
+from PySide6.QtCore import QTimer, QByteArray
+from PySide6.QtGui import QCloseEvent, QShowEvent
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -79,8 +79,15 @@ class MainWindow(QMainWindow):
         # Set up the window
         current_instance = self.settings_controller.settings.current_instance
         self.__set_window_title(current_instance)
-        # Use GUIInfo to set the window size and position from settings
-        self.setGeometry(*GUIInfo().get_window_geometry())
+        # Restore window geometry from settings
+        main_window_geometry = QByteArray.fromBase64(QByteArray.fromStdString(self.settings_controller.settings.main_window_geometry_b64))
+        if (not self.restoreGeometry(main_window_geometry)):
+            screen_rect = QApplication.primaryScreen().geometry()
+            width = int(screen_rect.width() * 0.8)
+            height = int(screen_rect.height() * 0.8)
+            self.setGeometry(screen_rect.x() + int(screen_rect.width() / 2 - width / 2), screen_rect.y() + int(screen_rect.height() / 2 - height / 2), width, height)
+            self.settings_controller.settings.main_window_geometry_b64 = self.saveGeometry().toBase64().toStdString()
+            self.settings_controller.settings.save()
         print(f"Window geometry: {self.geometry()}")
 
         # Create the window layout
@@ -232,6 +239,12 @@ class MainWindow(QMainWindow):
             return
         for widget in q_app.allWidgets():
             widget.setEnabled(enable)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        self.settings_controller.settings.main_window_geometry_b64 = self.saveGeometry().toBase64().toStdString()
+        self.settings_controller.settings.save()
+        super().closeEvent(event)
+        event.accept()
 
     def showEvent(self, event: QShowEvent) -> None:
         # Call the original showEvent handler
