@@ -932,7 +932,7 @@ class SettingsDialog(QDialog):
         window_width_label = QLabel(self.tr("Window Width:"))
         window_size_layout.addWidget(window_width_label, 2, 0)
         self.window_width_spinbox = QSpinBox()
-        self.window_width_spinbox.setRange(900, 1200)
+        self.window_width_spinbox.setRange(900, 1600)
         window_size_layout.addWidget(self.window_width_spinbox, 2, 1)
 
         window_height_label = QLabel(self.tr("Window Height:"))
